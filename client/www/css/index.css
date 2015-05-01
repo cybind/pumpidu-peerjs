@@ -114,12 +114,17 @@ h1 {
     -webkit-animation:fade 3000ms infinite;
 }
 
-#credentials, #dialler, #messages {
-  clear: both;
+#credentials,
+#dialler,
+#messages
+{
+    clear: both;
 }
-#remote-video {
-  max-width: 300px;
+#remote-video
+{
+    max-width: 300px;
 }
-#local-video {
-  max-width: 150px;
+#local-video
+{
+    max-width: 150px;
 }
