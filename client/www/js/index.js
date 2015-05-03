@@ -1,72 +1,23 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-var app = {
-    // Application Constructor
-    initialize: function() {
-        this.bindEvents();
-    },
-    // Bind Event Listeners
-    //
-    // Bind any events that are required on startup. Common events are:
-    // 'load', 'deviceready', 'offline', and 'online'.
-    bindEvents: function() {
-        document.addEventListener('deviceready', this.onDeviceReady, false);
-    },
-    // deviceready Event Handler
-    //
-    // The scope of 'this' is the event. In order to call the 'receivedEvent'
-    // function, we must explicitly call 'app.receivedEvent(...);'
-    onDeviceReady: function() {
-        app.receivedEvent('deviceready');
-    },
-    // Update DOM on a Received Event
-    receivedEvent: function(id) {
-        // var parentElement = document.getElementById(id);
-        // var listeningElement = parentElement.querySelector('.listening');
-        // var receivedElement = parentElement.querySelector('.received');
-
-        // listeningElement.setAttribute('style', 'display:none;');
-        // receivedElement.setAttribute('style', 'display:block;');
-        init();
-        console.log('Received Event: ' + id);
-    }
-};
-
-app.initialize();
+var isBrowser = document.URL.indexOf( 'http://' ) !== -1 || document.URL.indexOf( 'https://' ) !== -1;
+if ( !isBrowser ) {
+    document.addEventListener('deviceready', init, false);
+} else {
+    init();
+}        
 
 function init() {
 
-    console.log('init...');
+    var callerId;
 
     // PeerJS server location
-    //var SERVER_IP = '192.168.0.102'; //home
-    var SERVER_IP = '192.168.1.227'; //office
+    var SERVER_IP = '192.168.0.102'; //home
+    // var SERVER_IP = '192.168.1.227'; //office
     var SERVER_PORT = 9000;
 
     // DOM elements manipulated as user interacts with the app
-    var messageBox = document.querySelector('#messages');
-    var callerIdEntry = document.querySelector('#caller-id');
-    var connectBtn = document.querySelector('#connect');
-    var recipientIdEntry = document.querySelector('#recipient-id');
-    var dialBtn = document.querySelector('#dial');
-    var remoteVideo = document.querySelector('#remote-video');
-    var localVideo = document.querySelector('#local-video');
+    var callButton = document.querySelector("#callButton");
+    var localVideo = document.querySelector("#localVideo");
+    var remoteVideo = document.querySelector("#remoteVideo");
 
     // the ID set for this client
     var callerId = null;
@@ -77,30 +28,6 @@ function init() {
 
     // the local video stream captured with getUserMedia()
     var localStream = null;
-
-    // DOM utilities
-    var makePara = function(text) {
-        var p = document.createElement('p');
-        p.innerText = text;
-        return p;
-    };
-    var addMessage = function(para) {
-        if (messageBox.firstChild) {
-            messageBox.insertBefore(para, messageBox.firstChild);
-        } else {
-            messageBox.appendChild(para);
-        }
-    };
-
-    var logError = function(text) {
-        var p = makePara('ERROR: ' + text);
-        p.style.color = 'red';
-        addMessage(p);
-    };
-
-    var logMessage = function(text) {
-        addMessage(makePara(text));
-    };
 
     // get the local video and audio stream and show preview in the
     // "LOCAL" video element
@@ -126,8 +53,8 @@ function init() {
                 },
 
                 function(err) {
-                    logError('failed to access local camera');
-                    logError(err.message);
+                    alert('Failed to access local camera');
+                    console.log(err);
                 }
             );
         }
@@ -141,12 +68,9 @@ function init() {
     // set caller ID and connect to the PeerJS server
     var connect = function() {
 
-        console.log('connect...');
-
-        callerId = callerIdEntry.value;
-
         if (!callerId) {
-            logError('please set caller ID first');
+            alert('Please enter your name first');
+            setCallerId();
             return;
         }
 
@@ -164,53 +88,56 @@ function init() {
             // open === true; instead, listen to the wrapped WebSocket
             // and show an error if its readyState becomes CLOSED
             peer.socket._socket.onclose = function() {
-                logError('no connection to server');
+                alert('No connection to server');
                 peer = null;
             };
 
             // get local stream ready for incoming calls once the wrapped
             // WebSocket is open
             peer.socket._socket.onopen = function() {
-                getLocalStream();
+                getLocalStream(function() {
+                    callButton.style.display = 'block';
+                });
             };
 
             // handle events representing incoming calls
             peer.on('call', answer);
         } catch (e) {
             peer = null;
-            logError('error while connecting to server');
+            alert('Error while connecting to server');
         }
     };
 
     // make an outgoing call
     var dial = function() {
         if (!peer) {
-            logError('please connect first');
+            alert('Please connect first');
             return;
         }
 
         if (!localStream) {
-            logError('could not start call as there is no local camera');
+            alert('Could not start call as there is no local camera');
             return
         }
 
-        var recipientId = recipientIdEntry.value;
+        var recipientId = prompt('Please enter recipient name');
 
         if (!recipientId) {
-            logError('could not start call as no recipient ID is set');
+            alert('Could not start call as no recipient ID is set');
+            dial();
             return;
         }
 
         getLocalStream(function(stream) {
-            logMessage('outgoing call initiated');
+            console.log('Outgoing call initiated');
 
             var call = peer.call(recipientId, stream);
 
             call.on('stream', showRemoteStream);
 
             call.on('error', function(e) {
-                logError('error with call');
-                logError(e.message);
+                alert('Error with call');
+                console.log(e.message);
             });
         });
     };
@@ -218,23 +145,29 @@ function init() {
     // answer an incoming call
     var answer = function(call) {
         if (!peer) {
-            logError('cannot answer a call without a connection');
+            alert('Cannot answer a call without a connection');
             return;
         }
 
         if (!localStream) {
-            logError('could not answer call as there is no localStream ready');
+            alert('Could not answer call as there is no localStream ready');
             return;
         }
 
-        logMessage('incoming call answered');
+        console.log('Incoming call answered');
 
         call.on('stream', showRemoteStream);
 
         call.answer(localStream);
     };
 
+    var setCallerId = function () {
+        callerId = prompt('Please enter your name');
+        connect();
+    };
+
+    setCallerId();
+
     // wire up button events
-    connectBtn.addEventListener('click', connect);
-    dialBtn.addEventListener('click', dial);
+    callButton.addEventListener('click', dial);
 }
