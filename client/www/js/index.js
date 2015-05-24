@@ -7,10 +7,8 @@ if ( !isBrowser ) {
 
 function init() {
 
-    var callerId;
-
     // PeerJS server location
-    var SERVER_IP = '192.168.0.102'; //home
+    var SERVER_IP = '192.168.0.101'; //home
     // var SERVER_IP = '192.168.1.227'; //office
     var SERVER_PORT = 9000;
 
